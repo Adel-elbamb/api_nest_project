@@ -1,6 +1,6 @@
 import { IsNotEmpty, IsString ,Length} from "class-validator";
 
-export class CreateUser{
+export class RegesterDto{
     @IsString()
     @IsNotEmpty()
     @Length(2, 20, { message:"errror in this name " })
@@ -10,5 +10,4 @@ export class CreateUser{
     email: String;
     @IsString()
     password: string;
-
 }
