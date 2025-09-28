@@ -9,6 +9,6 @@ export class CreateUser{
     @IsNotEmpty()
     email: String;
     @IsString()
-    password: String;
+    password: string;
 
 }
