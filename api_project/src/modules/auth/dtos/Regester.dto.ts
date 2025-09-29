@@ -10,4 +10,7 @@ export class RegesterDto{
     email: String;
     @IsString()
     password: string;
+    @IsString()
+    role?: string;
+
 }

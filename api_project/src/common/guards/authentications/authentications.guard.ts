@@ -22,16 +22,16 @@ export class AuthenticationsGuard implements CanActivate {
       throw new UnauthorizedException('Invalid authorization header format');
     }
     try {
-      const payload =  this._jwtService.verifyAsync(token, {
+      const payload =  this._jwtService.verify(token, {
         secret: this._configService.get<string>('JWT_SECRET'), 
       });
       request.user = payload;
 
-      return true;
+    
     } catch (error) {
       throw new UnauthorizedException('Invalid or expired token');
     }
-
+    
     return true;
   }
 }
