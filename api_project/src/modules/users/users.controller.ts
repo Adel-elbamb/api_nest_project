@@ -7,15 +7,18 @@ import {
     Delete,
     Body,
     HttpCode,
+    UseGuards,
 } from '@nestjs/common';
 import { UsersService } from './users.service';
 import { UserDto } from './Dtos/User.dto';
+import { AuthenticationsGuard } from '../../common/guards/authentications/authentications.guard';
 
 @Controller('users')
 export class UsersController {
     constructor(private readonly usersService: UsersService) { }
 
     @Get()
+    @UseGuards(AuthenticationsGuard)
     allUsers(): Promise<UserDto[]> {
         return this.usersService.allUser();
     }

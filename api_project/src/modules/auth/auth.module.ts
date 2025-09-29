@@ -14,7 +14,8 @@ import { UsersSchema, User } from '../../Schemas/User.Schema'
            secret: configService.get<string>('JWT_SECRET'), 
            signOptions: { expiresIn: '1h' },
          }),
-       }),
+         global: true,
+       } ),
    ], 
   providers: [AuthService],
   controllers: [AuthController]
