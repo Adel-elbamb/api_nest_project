@@ -14,10 +14,12 @@ export class UsersService {
     constructor(
         @InjectModel(User.name) private UserModel: Model<UserDocument>
     ) { }
-
+     
     async allUser(): Promise<UserDto[]> {
-        return this.UserModel.find().exec();
+        const users = await this.UserModel.find().exec();
+        return users.map(user => new User(user.toObject()));
     }
+
 
     async oneUser(id: string): Promise<UserDto> {
         const user = await this.UserModel.findById(id).exec();
