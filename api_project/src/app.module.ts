@@ -8,6 +8,7 @@ import { ConfigModule, ConfigService } from '@nestjs/config';
 import { APP_INTERCEPTOR } from '@nestjs/core';
 import { config } from 'process';
 import { JwtModule } from '@nestjs/jwt';
+import { PostsModule } from './modules/posts/posts.module';
 
 @Module({
   imports: [UsersModule, AuthModule,
@@ -23,17 +24,11 @@ import { JwtModule } from '@nestjs/jwt';
       }),
     }),
     UsersModule,
+    PostsModule ,
 
   ],
   controllers: [AppController],
-  providers: [AppService, 
-    
-        {
-      provide: APP_INTERCEPTOR,
-      useClass: ClassSerializerInterceptor,
-    },
-    
-  ],
+  providers: [AppService],
 
 })
 export class AppModule { }

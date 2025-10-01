@@ -16,8 +16,8 @@ export class UsersService {
     ) { }
      
     async allUser(): Promise<UserDto[]> {
-        const users = await this.UserModel.find().exec();
-        return users.map(user => new User(user.toObject()));
+        return await this.UserModel.find().exec();
+         
     }
 
 
@@ -40,7 +40,7 @@ export class UsersService {
             const updatedUser = await this.UserModel.findByIdAndUpdate(
                 id,
                 { $set: updateData },
-                { new: true }, // return updated doc
+                { new: true }, 
             ).exec();
 
             if (!updatedUser) {

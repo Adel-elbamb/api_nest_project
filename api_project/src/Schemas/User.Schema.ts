@@ -1,6 +1,5 @@
 import { Prop, Schema, SchemaFactory } from "@nestjs/mongoose";
-import { Exclude } from "class-transformer";
-import { Document , Schema as mongoseSchema } from "mongoose";
+import { Document } from "mongoose";
 
 
 export type UserDocument = User & Document;
@@ -10,7 +9,7 @@ export enum UserRole {
     ADMIN = 'admin',
 }
 
-@Schema({ timestamps: true })
+@Schema({ timestamps: true, collection: 'users' })
     
 export class User { 
     @Prop({ required: true })
@@ -20,7 +19,6 @@ export class User {
     email: string;
 
     @Prop({ required: true })
-    @Exclude()
     password: string;
 
     @Prop({
@@ -29,9 +27,6 @@ export class User {
         default: UserRole.USER
     })
     role: UserRole;
-    constructor(partial: Partial<User>) {
-        Object.assign(this, partial);
-    }
 }
 
 export const UsersSchema = SchemaFactory.createForClass(User);

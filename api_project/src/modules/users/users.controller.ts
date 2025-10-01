@@ -16,7 +16,7 @@ import { UserDto } from './Dtos/User.dto';
 import { AuthenticationsGuard } from '../../common/guards/authentications/authentications.guard';
 import { AuthorizationGuard } from 'src/common/guards/authorization/authorization.guard';
 import { Roles } from 'src/common/decorators/roles/roles.decorator';
-import { LoggingInterceptor } from 'src/common/intersictors/logging.interceptor';
+
 
 @Controller('users')
 export class UsersController {
@@ -25,7 +25,6 @@ export class UsersController {
     @Get()
     @Roles("user","admin")
     @UseGuards(AuthenticationsGuard, AuthorizationGuard)
-    // @UseInterceptors(ClassSerializerInterceptor)
     allUsers(): Promise<UserDto[]> {
         return this.usersService.allUser();
     }
@@ -33,7 +32,6 @@ export class UsersController {
     @Get(':id')
     @Roles("user", "admin")
     @UseGuards(AuthenticationsGuard, AuthorizationGuard)
-    // @UseInterceptors(LoggingInterceptor)
     oneUser(@Param('id') id: string): Promise<UserDto> {
         return this.usersService.oneUser(id);
     }
