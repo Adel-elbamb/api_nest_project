@@ -25,12 +25,12 @@ export class PostsController {
         return this.postsService.allPosts(limit, page, title);
     }
 
-    @Get('/posts')
-    async posts(
-        // @Query('title') title :string 
-    ) {
-        return this.postsService.posts()
-    }
+    // @Get('/posts')
+    // async posts(
+    //     // @Query('title') title :string 
+    // ) {
+    //     return this.postsService.posts()
+    // }
 
     @Patch(':id')
     async updatePost(

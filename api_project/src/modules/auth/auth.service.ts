@@ -20,7 +20,7 @@ export class AuthService {
         try {
             const userExist = await this.UserModel.findOne({ email: user.email });
             if (userExist) {
-                throw new ConflictException('User already exists'); // 409 Conflict
+                throw new ConflictException('User already exists'); 
             }
 
             const salt = await bcrypt.genSalt(10);

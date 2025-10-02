@@ -25,7 +25,7 @@ export class PostsService {
 
         const newPost = await this.postModel.create(postDto);
         // console.log(newPost)
-        return newPost
+        return newPos
     }
 
     async allPosts(limit: number = 10, page: number = 1, title?: string) {
@@ -71,61 +71,35 @@ export class PostsService {
         return "post deleted sucessfully "
     }
     // using the aggragation pipline
-        async posts(title?: string): Promise<any> {
-            const posts = await this.postModel.aggregate([
-                {
-                    $match: title ? { title: { $regex: title, $options: 'i' } } : {}
-                },
-                {
-                    $lookup: {
-                        from: "users",
-                        localField: "createdBy",
-                        foreignField: "_id",
-                        as: "ownerPost"
-                    }
-                },
-                {
-                    $unwind: "$ownerPost"
-                },
-                {
-                    $project: {
-                        title: 1,
-                        body: 1,
-                        "ownerPost.name": 1,
-                        "ownerPost.email": 1
-                    }
-                }
-            ]);
+    //     async posts(title?: string): Promise<any> {
+    //         const posts = await this.postModel.aggregate([
+    //             {
+    //                 $match: title ? { title: { $regex: title, $options: 'i' } } : {}
+    //             },
+    //             {
+    //                 $lookup: {
+    //                     from: "users",
+    //                     localField: "createdBy",
+    //                     foreignField: "_id",
+    //                     as: "ownerPost"
+    //                 }
+    //             },
+    //             {
+    //                 $unwind: "$ownerPost"
+    //             },
+    //             {
+    //                 $project: {
+    //                     title: 1,
+    //                     body: 1,
+    //                     "ownerPost.name": 1,
+    //                     "ownerPost.email": 1
+    //                 }
+    //             }
+    //         ]);
 
-            return posts;
-        }
+    //         return posts;
+    //     }
     }
 
 
 
-//     async posts(): Promise<any> {
-//         const posts = await this.postModel.aggregate([
-//             {
-//                 $lookup: {
-//                     from: "users",              // collection name
-//                     localField: "createdBy",    // الحقل في posts
-//                     foreignField: "_id",        // الحقل في users
-//                     as: "ownerPost"
-//                 }
-//             },
-//             {
-//                 $unwind: "$ownerPost" // عشان ما يبقاش Array
-//             },
-//             {
-//                 $project: {
-//                     title: 1,
-//                     body: 1,
-//                     "ownerPost.name": 1,
-//                     "ownerPost.email": 1
-//                 }
-//             }
-//         ]);
-
-//         return posts;
-//     }
-// }
