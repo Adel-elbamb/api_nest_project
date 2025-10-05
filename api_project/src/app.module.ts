@@ -7,6 +7,8 @@ import { MongooseModule } from '@nestjs/mongoose';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { config } from 'process';
 import { JwtModule } from '@nestjs/jwt';
+import { ChatGateway } from './modules/chat/chat.gateway';
+// import { ChatModule } from './modules/chat/chat.module';
 
 @Module({
   imports: [UsersModule, AuthModule,
@@ -21,10 +23,10 @@ import { JwtModule } from '@nestjs/jwt';
         uri: configService.get<string>('DB_URL'),
       }),
     }),
-    UsersModule,
+    UsersModule
 
   ],
   controllers: [AppController],
-  providers: [AppService],
+  providers: [AppService, ChatGateway],
 })
 export class AppModule { }

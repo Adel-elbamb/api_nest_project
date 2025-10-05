@@ -10,5 +10,4 @@ export class UserDto{
     email: String;
     @IsString()
     password: string;
-
 }
