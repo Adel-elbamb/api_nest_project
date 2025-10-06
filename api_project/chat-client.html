@@ -1,0 +1,174 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Chat Client (Socket.IO)</title>
+  <style>
+    body { font-family: Arial, Helvetica, sans-serif; margin: 20px; max-width: 900px; }
+    .row { display:flex; gap:8px; margin-bottom:8px; }
+    input, button, textarea { font-size:14px; padding:8px; }
+    #messages { border:1px solid #ccc; height: 300px; overflow:auto; padding:8px; background:#fafafa; }
+    .msg { margin-bottom:8px; padding:6px; border-radius:6px; }
+    .msg.me { background:#e6ffed; align-self:flex-end; }
+    .msg.other { background:#eef2ff; }
+    .meta { font-size:12px; color:#666; }
+    #status { margin-bottom:10px; font-weight:600; }
+  </style>
+</head>
+<body>
+  <h1>Chat Client (Socket.IO)</h1>
+
+  <div id="status">Status: <span id="conn">disconnected</span></div>
+
+  <!-- Settings -->
+  <div class="row">
+    <label>Server URL:</label>
+    <input id="serverUrl" value="http://localhost:3000" style="flex:1" />
+    <button id="connectBtn">Connect</button>
+    <button id="disconnectBtn" disabled>Disconnect</button>
+  </div>
+
+  <!-- Optional: JWT token to send on connect -->
+  <div class="row">
+    <label>JWT (optional):</label>
+    <input id="jwt" placeholder="Paste JWT here if needed" style="flex:1" />
+  </div>
+
+  <!-- User identity for joining its room -->
+  <div class="row">
+    <label>Your userId:</label>
+    <input id="userId" placeholder="user id (e.g. 642...)" style="flex:1" />
+    <button id="joinBtn" disabled>Join Room</button>
+  </div>
+
+  <!-- Send message -->
+  <div class="row">
+    <label>To (userId):</label>
+    <input id="toId" placeholder="receiver userId" style="flex:1" />
+  </div>
+
+  <div class="row">
+    <textarea id="content" placeholder="Type message..." rows="3" style="flex:1"></textarea>
+    <button id="sendBtn" disabled>Send</button>
+  </div>
+
+  <hr />
+
+  <div id="messages"></div>
+
+  <!-- Socket.IO client lib (match your server's major version) -->
+  <script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
+  <script>
+    // === Config / helpers ===
+    const SERVER_URL_INPUT = document.getElementById('serverUrl');
+    const CONNECT_BTN = document.getElementById('connectBtn');
+    const DISCONNECT_BTN = document.getElementById('disconnectBtn');
+    const CONN_STATUS = document.getElementById('conn');
+    const JOIN_BTN = document.getElementById('joinBtn');
+    const SEND_BTN = document.getElementById('sendBtn');
+    const USER_ID_INPUT = document.getElementById('userId');
+    const TO_ID_INPUT = document.getElementById('toId');
+    const CONTENT_INPUT = document.getElementById('content');
+    const JWT_INPUT = document.getElementById('jwt');
+    const MESSAGES = document.getElementById('messages');
+
+    let socket = null;
+    let connected = false;
+    let joinedRoom = false;
+    let myUserId = null;
+
+    function appendMessage(text, who='other') {
+      const el = document.createElement('div');
+      el.className = 'msg ' + (who === 'me' ? 'me' : 'other');
+      el.innerHTML = `<div>${text}</div>`;
+      MESSAGES.appendChild(el);
+      MESSAGES.scrollTop = MESSAGES.scrollHeight;
+    }
+
+    // === Connect / Disconnect ===
+    CONNECT_BTN.addEventListener('click', () => {
+      if (socket && connected) return;
+      const serverUrl = SERVER_URL_INPUT.value.trim();
+      if (!serverUrl) return alert('Set server URL');
+
+      // If you want to use JWT auth with socket.io, pass token in `auth`.
+      const token = JWT_INPUT.value.trim() || null;
+      const opts = token ? { auth: { token } } : {};
+
+      socket = io(serverUrl, opts);
+
+      socket.on('connect', () => {
+        connected = true;
+        CONN_STATUS.textContent = 'connected (id: ' + socket.id + ')';
+        CONNECT_BTN.disabled = true;
+        DISCONNECT_BTN.disabled = false;
+        JOIN_BTN.disabled = false;
+        SEND_BTN.disabled = false;
+        appendMessage('Connected to server: ' + socket.id, 'meta');
+      });
+
+      socket.on('disconnect', (reason) => {
+        connected = false;
+        CONN_STATUS.textContent = 'disconnected';
+        CONNECT_BTN.disabled = false;
+        DISCONNECT_BTN.disabled = true;
+        JOIN_BTN.disabled = true;
+        SEND_BTN.disabled = true;
+        appendMessage('Disconnected: ' + reason, 'meta');
+      });
+
+      socket.on('connect_error', (err) => {
+        appendMessage('Connect error: ' + (err.message || err), 'meta');
+      });
+
+      // Custom events used in our gateway
+      socket.on('newMessage', (msg) => {
+        // message object from server (senderId, receiverId, content, createdAt...)
+        const text = '[' + (msg.sender || 'unknown') + ' → ' + (msg.receiver || 'me') + '] ' + (msg.content || JSON.stringify(msg));
+        const who = (msg.sender === myUserId) ? 'me' : 'other';
+        appendMessage(text, who);
+      });
+    });
+
+    DISCONNECT_BTN.addEventListener('click', () => {
+      if (!socket) return;
+      socket.disconnect();
+      socket = null;
+    });
+
+    // === Join room (use your userId as room name in gateway) ===
+    JOIN_BTN.addEventListener('click', () => {
+      if (!socket || !connected) return alert('Connect first');
+      const uid = USER_ID_INPUT.value.trim();
+      if (!uid) return alert('Enter your userId');
+      myUserId = uid;
+      socket.emit('joinRoom', uid);
+      appendMessage('Joined room: ' + uid, 'meta');
+      joinedRoom = true;
+    });
+
+    // === Send message ===
+    SEND_BTN.addEventListener('click', () => {
+      if (!socket || !connected) return alert('Connect first');
+      const senderId = USER_ID_INPUT.value.trim();
+      const receiverId = TO_ID_INPUT.value.trim();
+      const content = CONTENT_INPUT.value.trim();
+      if (!senderId || !receiverId || !content) return alert('Fill sender, receiver, and message');
+
+      const payload = { senderId, receiverId, content };
+      socket.emit('sendMessage', payload);
+      appendMessage('[You → ' + receiverId + '] ' + content, 'me');
+      CONTENT_INPUT.value = '';
+    });
+
+    // Allow pressing Enter to send quickly (in message box)
+    CONTENT_INPUT.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter' && !e.shiftKey) {
+        e.preventDefault();
+        SEND_BTN.click();
+      }
+    });
+  </script>
+</body>
+</html>

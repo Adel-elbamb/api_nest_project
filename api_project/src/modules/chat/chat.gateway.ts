@@ -1,28 +1,47 @@
-import { OnModuleInit, } from '@nestjs/common';
-import { SubscribeMessage, WebSocketGateway, WebSocketServer, MessageBody } from '@nestjs/websockets';
-import { Server } from 'socket.io';
-@WebSocketGateway()
-export class ChatGateway implements OnModuleInit {
+// src/modules/chat/chat.gateway.ts
+import {
+  WebSocketGateway,
+  WebSocketServer,
+  SubscribeMessage,
+  MessageBody,
+  ConnectedSocket,
+} from '@nestjs/websockets';
+import { Server, Socket } from 'socket.io';
+import { ChatService } from './chat.service';
+
+@WebSocketGateway({
+  cors: {
+    origin: '*',
+  },
+})
+export class ChatGateway {
   @WebSocketServer()
   server: Server;
-  onModuleInit() {
-    // socket have all data for user connection 
-    this.server.on('connection', (socket) => {
-      console.log(`Client connected: ${socket.id}`);
-    })
 
+  constructor(private chatService: ChatService) { }
+
+  // user joins his room (e.g. room = userId)
+  @SubscribeMessage('joinRoom')
+  handleJoin(@ConnectedSocket() socket: Socket, @MessageBody() userId: string) {
+    console.log(`Socket ID: ${socket.id} is trying to join room: ${userId}`);
+    socket.join(userId);
+    console.log(`User ${userId} joined room`);
   }
 
-  @SubscribeMessage('sendMore')
-  sendMore(@MessageBody() massage: string) {
-    this.server.emit('newSend', massage);
+  // send message event
+  @SubscribeMessage('sendMessage')
+  async handleMessage(
+  
+    @MessageBody() data: { senderId: string; receiverId: string; content: string },
+  ) {
+    const savedMsg = await this.chatService.saveMessage(
+      data.senderId,
+      data.receiverId,
+      data.content,
+    );
 
-
+    // send to receiver room
+    this.server.to(data.receiverId).emit('newMessage', savedMsg);
+    return savedMsg;
   }
-
-  @SubscribeMessage('sendOne')
-  sendOne(@MessageBody() data: { userId: string, message: string }) {
-    this.server.to(data.userId).emit('sendSingleUser', data.message);
-  }
-
 }
