@@ -1,0 +1,187 @@
+<!--
+Simple Socket.IO web client for your NestJS Chat Gateway.
+Usage:
+1. Serve this file (or open it in the browser). If your Socket.IO server is on a different origin, ensure CORS is enabled on the server.
+2. Fill Server URL (e.g. http://localhost:3000), provide JWT token, and click Connect.
+3. Use "Send Private" to send a privateMessage { to, message }.
+4. Use "Broadcast" to send a broadcastMessage { message }.
+
+Notes:
+- This client sends the token in the Socket.IO `auth` payload: `{ token }`.
+- Your NestJS gateway must read `client.handshake.auth.token` (recommended).
+- If your gateway expects Authorization header instead, you must change the server or use a Node client (browsers cannot set custom upgrade headers reliably).
+-->
+
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Socket.IO Chat Client</title>
+  <style>
+    body{font-family:Inter,system-ui,Segoe UI,Roboto,"Helvetica Neue",Arial;margin:16px;background:#f6f8fb}
+    .card{background:white;padding:16px;border-radius:8px;box-shadow:0 6px 18px rgba(20,30,60,.06);max-width:900px;margin:12px auto}
+    input,button,textarea,select{padding:8px;border-radius:6px;border:1px solid #ddd;font-size:14px}
+    .row{display:flex;gap:8px;align-items:center}
+    .col{display:flex;flex-direction:column;gap:8px}
+    #log{height:320px;overflow:auto;background:#0b1220;color:#dff3ff;padding:12px;border-radius:6px;font-family:monospace}
+    .green{color:green}
+    .red{color:crimson}
+    .muted{color:#666;font-size:13px}
+    label{font-size:13px;color:#333}
+    .controls{display:grid;grid-template-columns:1fr 320px;gap:12px}
+  </style>
+</head>
+<body>
+  <div class="card">
+    <h2>Socket.IO Chat Client</h2>
+    <p class="muted">Connect to your NestJS Socket.IO gateway. This client sends JWT in <code>auth</code> (recommended).</p>
+
+    <div class="controls">
+      <div>
+        <label>Server URL</label>
+        <input id="serverUrl" type="text" value="http://localhost:3000" style="width:100%" />
+
+        <label>JWT Token</label>
+        <input id="token" type="text" placeholder="Paste JWT token here" style="width:100%" />
+
+        <div style="margin-top:8px;display:flex;gap:8px">
+          <button id="connectBtn">Connect</button>
+          <button id="disconnectBtn" disabled>Disconnect</button>
+          <button id="clearLog">Clear Log</button>
+        </div>
+
+        <hr />
+
+        <label>Private message</label>
+        <input id="toUser" type="text" placeholder="recipient username (to)" style="width:100%" />
+        <textarea id="privateMsg" rows="3" placeholder="Type a private message..." style="width:100%"></textarea>
+        <div style="display:flex;gap:8px;margin-top:6px">
+          <button id="sendPrivate">Send Private</button>
+        </div>
+
+        <hr />
+
+        <label>Broadcast message</label>
+        <textarea id="broadcastMsg" rows="2" placeholder="Type a broadcast message..." style="width:100%"></textarea>
+        <div style="display:flex;gap:8px;margin-top:6px">
+          <button id="sendBroadcast">Broadcast</button>
+        </div>
+
+      </div>
+
+      <div>
+        <label>Log / Events</label>
+        <div id="log"></div>
+      </div>
+    </div>
+
+    <p class="muted" style="margin-top:12px">Events handled: <code>connect</code>, <code>disconnect</code>, <code>privateMessage</code>, <code>broadcastMessage</code>, <code>exception</code>, <code>error</code>.</p>
+  </div>
+
+  <script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
+  <script>
+    let socket = null;
+    const serverUrl = document.getElementById('serverUrl');
+    const tokenInput = document.getElementById('token');
+    const connectBtn = document.getElementById('connectBtn');
+    const disconnectBtn = document.getElementById('disconnectBtn');
+    const clearLogBtn = document.getElementById('clearLog');
+
+    const logEl = document.getElementById('log');
+    const toUser = document.getElementById('toUser');
+    const privateMsg = document.getElementById('privateMsg');
+    const sendPrivate = document.getElementById('sendPrivate');
+    const broadcastMsg = document.getElementById('broadcastMsg');
+    const sendBroadcast = document.getElementById('sendBroadcast');
+
+    function log(type, ...args){
+      const time = new Date().toLocaleTimeString();
+      const entry = document.createElement('div');
+      entry.innerHTML = `<span style='color:#999'>[${time}]</span> <strong>${type}</strong> ${args.map(a=>typeof a==='object'?JSON.stringify(a):a).join(' ')} `;
+      logEl.appendChild(entry);
+      logEl.scrollTop = logEl.scrollHeight;
+    }
+
+    function setButtons(connected){
+      connectBtn.disabled = connected;
+      disconnectBtn.disabled = !connected;
+    }
+
+    connectBtn.addEventListener('click', ()=>{
+      if (socket && socket.connected) return;
+      const url = serverUrl.value.trim();
+      const token = tokenInput.value.trim();
+      if (!url){ alert('Server URL required'); return; }
+
+      // create socket.io client — token is sent in `auth`
+      socket = io(url, {
+        auth: { token },
+        reconnectionAttempts: 3,
+      });
+
+      socket.on('connect', ()=>{
+        log('connect','connected as', socket.id);
+        setButtons(true);
+      });
+
+      socket.on('disconnect', (reason) => {
+        log('disconnect', reason);
+        setButtons(false);
+      });
+
+      socket.on('privateMessage', (payload) => {
+        log('privateMessage', payload);
+      });
+
+      socket.on('broadcastMessage', (payload) => {
+        log('broadcastMessage', payload);
+      });
+
+      // many projects use 'exception' or 'error' events — listen for both
+      socket.on('exception', (err) => { log('exception', err); });
+      socket.on('error', (err) => { log('error', err); });
+
+      // custom server-side error event if you used client.emit('error', ...) in filter
+      socket.on('ws-error', (err) => { log('ws-error', err); });
+
+      socket.on('connect_error', (err) => {
+        // connection-level errors (e.g., auth failed) come here
+        log('connect_error', err.message || err);
+        setButtons(false);
+      });
+
+    });
+
+    disconnectBtn.addEventListener('click', ()=>{
+      if (!socket) return;
+      socket.disconnect();
+      setButtons(false);
+      log('info','manually disconnected');
+    });
+
+    clearLogBtn.addEventListener('click', ()=>{ logEl.innerHTML = ''; });
+
+    sendPrivate.addEventListener('click', ()=>{
+      if (!socket || !socket.connected){ alert('Not connected'); return; }
+      const to = toUser.value.trim();
+      const message = privateMsg.value.trim();
+      if (!to){ alert('Recipient (to) is required for private message'); return; }
+      if (!message){ alert('Message is required'); return; }
+      socket.emit('privateMessage', { to, message });
+      log('emit','privateMessage', { to, message });
+      privateMsg.value = '';
+    });
+
+    sendBroadcast.addEventListener('click', ()=>{
+      if (!socket || !socket.connected){ alert('Not connected'); return; }
+      const message = broadcastMsg.value.trim();
+      if (!message){ alert('Message is required'); return; }
+      socket.emit('broadcastMessage', { message });
+      log('emit','broadcastMessage', { message });
+      broadcastMsg.value = '';
+    });
+
+  </script>
+</body>
+</html>
