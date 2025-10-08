@@ -8,6 +8,7 @@ import { ConfigModule, ConfigService } from '@nestjs/config';
 import { config } from 'process';
 import { JwtModule } from '@nestjs/jwt';
 import { ChatGateway } from './modules/chat/chat.gateway';
+import { ChatModule } from './modules/chat/chat.module';
 // import { ChatModule } from './modules/chat/chat.module';
 
 @Module({
@@ -23,10 +24,12 @@ import { ChatGateway } from './modules/chat/chat.gateway';
         uri: configService.get<string>('DB_URL'),
       }),
     }),
-    UsersModule
+    UsersModule,
+    ChatModule,
+    
 
   ],
   controllers: [AppController],
-  providers: [AppService, ChatGateway],
+  providers: [AppService],
 })
 export class AppModule { }
