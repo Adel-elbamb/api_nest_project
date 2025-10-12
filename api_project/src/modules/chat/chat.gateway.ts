@@ -10,11 +10,12 @@ import {
 } from '@nestjs/websockets';
 import { JwtService } from '@nestjs/jwt';
 import { Socket, Server } from 'socket.io';
-import { UsePipes, ValidationPipe, UseFilters } from '@nestjs/common';
+import { UsePipes, ValidationPipe, UseFilters, Inject } from '@nestjs/common';
 import { WsExceptionsFilter } from 'src/common/filters/ws-exception.filter';
 import { MessageDto } from './Dtos/messageDto.dto';
 import { ChatService } from './chat.service';
-
+import type { Cache } from 'cache-manager';
+import { CACHE_MANAGER } from '@nestjs/cache-manager';
 @WebSocketGateway({ cors: true })
 @UseFilters(WsExceptionsFilter)
 @UsePipes(
@@ -24,20 +25,20 @@ import { ChatService } from './chat.service';
     transform: true,
     exceptionFactory: (errors) => new WsException(errors),
   }),
-)
+  )
+  
 export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
   @WebSocketServer()
   server: Server;
 
   private onlineUsers = new Map<string, string>(); 
-
   constructor(
     private jwtService: JwtService,
     private chatService: ChatService,
+    @Inject(CACHE_MANAGER) private cacheManager: Cache,
   ) { }
 
-
-  handleConnection(client: Socket) {
+  async handleConnection(client: Socket) {
     try {
       const token = client.handshake.headers['authorization']?.split(' ')[1];
       if (!token) throw new WsException('No token provided');
@@ -45,25 +46,43 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
       const user = this.jwtService.verify(token);
       client.data.user = user;
 
-      this.onlineUsers.set(user.id, client.id);
-      console.log(this.onlineUsers)
-      console.log(` ${user.name} connected`);
+      // Save user socket id in Redis
+      await this.cacheManager.set(`onlineUser:${user.id}`, client.id, 0);
+
+      // Debug: confirm stored socket id
+      const socketId = await this.cacheManager.get(`onlineUser:${user.id}`);
+      console.log(`🟢 ${user.name} connected with socket ${socketId}`);
+
+      // Optionally keep a list of all online users
+      const usersList =
+        (await this.cacheManager.get<Record<string, string>>('onlineUsers')) || {};
+      usersList[user.id] = client.id;
+      await this.cacheManager.set('onlineUsers', usersList, 0);
+
+      console.log('✅ Current online users:', usersList);
     } catch (err) {
-      console.log(' invalid token:', err.message);
+      console.log('❌ Invalid token:', err.message);
       client.disconnect();
     }
   }
 
-  handleDisconnect(client: Socket) {
-    for (const [userId, socketId] of this.onlineUsers.entries()) {
-      if (socketId === client.id) {
-        this.onlineUsers.delete(userId);
-        
-        console.log(` User ${userId}  disconnected`);
-        break;
-      }
-    }
+  // disconnect user and remove from redis
+  async handleDisconnect(client: Socket) {
+    const user = client.data.user;
+    if (!user) return;
+
+    await this.cacheManager.del(`onlineUser:${user.id}`);
+
+    // Remove from the onlineUsers list
+    const usersList =
+      (await this.cacheManager.get<Record<string, string>>('onlineUsers')) || {};
+    delete usersList[user.id];
+    await this.cacheManager.set('onlineUsers', usersList, 0);
+
+    console.log(`🔴 ${user.name} disconnected`);
+    console.log('✅ Remaining online users:', usersList);
   }
+
 
   
   @SubscribeMessage('privateMessage')
@@ -72,23 +91,26 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
     @MessageBody() data: { to: string; message: string },
   ) {
     const sender = client.data.user;
-    console.log(sender)
     if (!sender) throw new WsException('Unauthorized sender');
 
-    const receiverSocketId = this.onlineUsers.get(data.to ?? '');
-    if (!receiverSocketId)
+    // Get receiver socket from Redis
+    const receiverSocketId = await this.cacheManager.get<string>(`onlineUser:${data.to}`);
+    if (!receiverSocketId) {
       throw new WsException(`User ${data.to} is not online`);
+    }
 
-   
+    // Save message in DB
     await this.chatService.saveMessage(sender.id, data.to!, data.message);
 
+    // Send the message to the receiver’s socket
     client.to(receiverSocketId).emit('privateMessage', {
       from: sender.name,
       message: data.message,
     });
 
-    console.log(` ${sender.name} → ${data.to}: ${data.message}`);
+    console.log(`💬 ${sender.name} → ${data.to}: ${data.message}`);
   }
+
 
   @SubscribeMessage('editMessage')
   async handleEditMessage(
@@ -104,7 +126,18 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
       data.newMessage,
     );
 
-    this.server.emit('messageUpdated', updated);
+    // Find the receiver socket
+    const receiverSocketId = await this.cacheManager.get<string>(
+      `onlineUser:${updated.receiverId}`,
+    );
+
+    // Emit only to sender + receiver
+    client.emit('messageUpdated', updated); // to sender
+    if (receiverSocketId) {
+      this.server.to(receiverSocketId).emit('messageUpdated', updated); // to receiver
+    }
+
+    console.log(`✏️ Message edited by ${sender.name}: ${updated.message}`);
   }
 
 
@@ -118,8 +151,20 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
 
     const deleted = await this.chatService.deleteMessage(data.messageId, sender.id);
 
-    this.server.emit('messageDeleted', { messageId: deleted._id });
+    // Find receiver socket
+    const receiverSocketId = await this.cacheManager.get<string>(
+      `onlineUser:${deleted.receiverId}`,
+    );
+
+    // Emit only to sender + receiver
+    client.emit('messageDeleted', { messageId: deleted._id });
+    if (receiverSocketId) {
+      this.server.to(receiverSocketId).emit('messageDeleted', { messageId: deleted._id });
+    }
+
+    console.log(` Message deleted by ${sender.name}`);
   }
+
 
   // @SubscribeMessage('broadcastMessage')
   // handleBroadcastMessage(

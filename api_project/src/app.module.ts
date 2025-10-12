@@ -3,20 +3,36 @@ import { AppController } from './app.controller';
 import { AppService } from './app.service';
 import { UsersModule } from './modules/users/users.module';
 import { AuthModule } from './modules/auth/auth.module';
+import { ChatModule } from './modules/chat/chat.module';
 import { MongooseModule } from '@nestjs/mongoose';
 import { ConfigModule, ConfigService } from '@nestjs/config';
-import { config } from 'process';
-import { JwtModule } from '@nestjs/jwt';
-import { ChatGateway } from './modules/chat/chat.gateway';
-import { ChatModule } from './modules/chat/chat.module';
-// import { ChatModule } from './modules/chat/chat.module';
+import { CacheModule } from '@nestjs/cache-manager';
+import { redisStore } from 'cache-manager-ioredis-yet';
 
 @Module({
-  imports: [UsersModule, AuthModule,
+  imports: [
+    UsersModule,
+    AuthModule,
+    ChatModule,
+
+    CacheModule.registerAsync({
+      isGlobal: true,
+      useFactory: async () => ({
+        store: await redisStore({
+          socket: {
+            host: '127.0.0.1',
+            port: 6379,
+          },
+          ttl: 0,
+        }),
+      }),
+    }),
+
     ConfigModule.forRoot({
       envFilePath: '.env',
       isGlobal: true,
     }),
+
     MongooseModule.forRootAsync({
       imports: [ConfigModule],
       inject: [ConfigService],
@@ -24,10 +40,6 @@ import { ChatModule } from './modules/chat/chat.module';
         uri: configService.get<string>('DB_URL'),
       }),
     }),
-    UsersModule,
-    ChatModule,
-    
-
   ],
   controllers: [AppController],
   providers: [AppService],
