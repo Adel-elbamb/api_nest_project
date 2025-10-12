@@ -15,22 +15,24 @@ import { redisStore } from 'cache-manager-ioredis-yet';
     AuthModule,
     ChatModule,
 
-    CacheModule.registerAsync({
+    ConfigModule.forRoot({
+      envFilePath: '.env',
       isGlobal: true,
-      useFactory: async () => ({
+    }),
+
+    CacheModule.registerAsync({
+      imports: [ConfigModule],
+      inject: [ConfigService],
+      isGlobal: true,
+      useFactory: async (configService: ConfigService) => ({
         store: await redisStore({
           socket: {
-            host: '127.0.0.1',
-            port: 6379,
+            host: configService.get<string>('REDIS_HOST') ,
+            port: configService.get<number>('REDIS_PORT') ,
           },
           ttl: 0,
         }),
       }),
-    }),
-
-    ConfigModule.forRoot({
-      envFilePath: '.env',
-      isGlobal: true,
     }),
 
     MongooseModule.forRootAsync({

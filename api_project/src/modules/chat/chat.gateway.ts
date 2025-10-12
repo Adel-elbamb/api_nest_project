@@ -31,7 +31,6 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
   @WebSocketServer()
   server: Server;
 
-  private onlineUsers = new Map<string, string>(); 
   constructor(
     private jwtService: JwtService,
     private chatService: ChatService,
@@ -51,7 +50,7 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
 
       // Debug: confirm stored socket id
       const socketId = await this.cacheManager.get(`onlineUser:${user.id}`);
-      console.log(`🟢 ${user.name} connected with socket ${socketId}`);
+      console.log(` ${user.name} connected with socket ${socketId}`);
 
       // Optionally keep a list of all online users
       const usersList =
@@ -59,9 +58,9 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
       usersList[user.id] = client.id;
       await this.cacheManager.set('onlineUsers', usersList, 0);
 
-      console.log('✅ Current online users:', usersList);
+      console.log(' Current online users:', usersList);
     } catch (err) {
-      console.log('❌ Invalid token:', err.message);
+      console.log(' Invalid token:', err.message);
       client.disconnect();
     }
   }
@@ -79,8 +78,8 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
     delete usersList[user.id];
     await this.cacheManager.set('onlineUsers', usersList, 0);
 
-    console.log(`🔴 ${user.name} disconnected`);
-    console.log('✅ Remaining online users:', usersList);
+    console.log(` ${user.name} disconnected`);
+    console.log(' Remaining online users:', usersList);
   }
 
 
@@ -108,7 +107,7 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
       message: data.message,
     });
 
-    console.log(`💬 ${sender.name} → ${data.to}: ${data.message}`);
+    console.log(` ${sender.name} → ${data.to}: ${data.message}`);
   }
 
 
@@ -137,7 +136,7 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
       this.server.to(receiverSocketId).emit('messageUpdated', updated); // to receiver
     }
 
-    console.log(`✏️ Message edited by ${sender.name}: ${updated.message}`);
+    console.log(` Message edited by ${sender.name}: ${updated.message}`);
   }
 
 
@@ -165,27 +164,4 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
     console.log(` Message deleted by ${sender.name}`);
   }
 
-
-  // @SubscribeMessage('broadcastMessage')
-  // handleBroadcastMessage(
-  //   @ConnectedSocket() client: Socket,
-  //   @MessageBody() data: MessageDto,
-  // ) {
-  //   const sender = client.data.user;
-  //   console.log(sender)
-  //   if (!sender) throw new WsException('Unauthorized sender');
-
-  //   this.server.emit('broadcastMessage', {
-  //     from: sender.name,
-  //     message: data.message,
-  //   });
-
-  //   console.log(` Broadcast from ${sender.name}: ${data.message}`);
-  // }
-
-  // @SubscribeMessage('getOnlineUsers')
-  // handleGetOnlineUsers(@ConnectedSocket() client: Socket) {
-  //   const users = Array.from(this.onlineUsers.keys());
-  //   client.emit('onlineUsers', users);
-  // }
 }
