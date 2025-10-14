@@ -12,7 +12,7 @@ import { UsersSchema, User } from '../../Schemas/User.Schema'
          inject: [ConfigService],
          useFactory: (configService: ConfigService) => ({
            secret: configService.get<string>('JWT_SECRET'), 
-           signOptions: { expiresIn: '1h' },
+           signOptions: { expiresIn: '9h' },
          }),
          global: true,
        } ),
