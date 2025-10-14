@@ -1,7 +1,8 @@
 import {
     Injectable, ConflictException, UnauthorizedException,
     NotFoundException,
-    InternalServerErrorException
+    InternalServerErrorException ,
+    UseFilters
 } from '@nestjs/common';
 import { LoginDTO } from './dtos/Login.dto';
 import { InjectModel } from '@nestjs/mongoose';
@@ -54,7 +55,7 @@ export class AuthService {
                 throw new UnauthorizedException('Invalid email or password');
             }
 
-            const payload = { id: user._id, email: user.email ,name : user.name , role: user.role};
+            const payload = { id: user._id, email: user.email , role: user.role};
             const token = this._JwtService.sign(payload);
 
             return {
