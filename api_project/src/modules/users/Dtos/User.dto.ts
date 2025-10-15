@@ -8,12 +8,12 @@ export class UserDto{
     name: String;
     @IsString()
     @IsNotEmpty()
-    @Matches(/^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$/, { message: 'Invalid email format' })
+    // @Matches(/^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$/, { message: 'Invalid email format' })
     email: String;
     @IsString()
     @IsNotEmpty()
-    @Length(6, 20, { message: "errror in this password " })
-    @Matches(/^(?=.*[A-Z])(?=.*\d)[A-Za-z\d@$!%*?&]{8,}$/, { message: 'Password must be at least 8 characters long, include one uppercase letter and one number', })
+    // @Length(6, 20, { message: "errror in this password " })
+    // @Matches(/^(?=.*[A-Z])(?=.*\d)[A-Za-z\d@$!%*?&]{8,}$/, { message: 'Password must be at least 8 characters long, include one uppercase letter and one number', })
     password: string;
     @IsString()
     role?: UserRole
