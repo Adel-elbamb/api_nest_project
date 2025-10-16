@@ -3,9 +3,9 @@ import { IsMongoId, IsNotEmpty, IsString } from 'class-validator';
 import { Transform } from 'class-transformer';
 import { Types } from 'mongoose';
 
-export class CreateMessageDto {
+export class MessageDto {
     @IsMongoId()
-    // @Transform(({ value }) => new Types.ObjectId(value))
+    @Transform(({ value }) => new Types.ObjectId(value))
     senderId: Types.ObjectId;
 
     @IsMongoId()
@@ -16,3 +16,5 @@ export class CreateMessageDto {
     @IsNotEmpty()
     message: string;
 }
+
+

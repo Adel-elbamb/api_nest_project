@@ -1,109 +1,3 @@
-// import {
-//   WebSocketGateway,
-//   SubscribeMessage,
-//   ConnectedSocket,
-//   MessageBody,
-//   OnGatewayConnection,
-//   OnGatewayDisconnect,
-//   WebSocketServer,
-//   WsException,
-// } from '@nestjs/websockets';
-// import { JwtService } from '@nestjs/jwt';
-// import { Socket, Server } from 'socket.io';
-// import { UsePipes, ValidationPipe, UseFilters, Inject } from '@nestjs/common';
-// import { WsExceptionsFilter } from 'src/common/filters/ws-exception.filter';
-// // import { MessageDto } from './Dtos/messageDto.dto';
-// import { ChatService } from './chat.service';
-// import type { Cache } from 'cache-manager';
-// import { CACHE_MANAGER } from '@nestjs/cache-manager';
-// @WebSocketGateway({ cors: true })
-// @UseFilters(WsExceptionsFilter)
-// @UsePipes(
-//   new ValidationPipe({
-//     whitelist: true,
-//     forbidNonWhitelisted: true,
-//     transform: true,
-//     exceptionFactory: (errors) => new WsException(errors),
-//   }),
-//   )
-  
-// export class ChatGateway implements OnGatewayConnection {
-//   @WebSocketServer()
-//   server: Server;
-
-//   constructor(
-//     private jwtService: JwtService,
-//     private chatService: ChatService,
-//     @Inject(CACHE_MANAGER) private cacheManager: Cache,
-//   ) { }
-
-//   async handleConnection(client: Socket) {
-//     try {
-//       const token = client.handshake.headers.authorization?.split(' ')[1];
-//       if (!token) throw new WsException('Unauthorized');
-
-//       const decoded = this.jwtService.verify(token);
-//       client.data.user = decoded;
-
-//       await this.chatService.setOnlineUser(
-//         decoded.id,
-//         client.id,
-//         decoded.name,
-//       );
-
-//       // console.log(` User connected: ${decoded.name} (${decoded.role})`);
-//       // this.server.emit('userConnected', {
-//       //   userId: decoded.id,
-//       //   name: decoded.name,
-//       //   role: decoded.role,
-//       // });
-//     } catch (err) {
-//       console.log('❌ Connection refused:', err.message);
-//       client.disconnect();
-//     }
-//   }
-
-
-// //   async handleDisconnect(client: Socket) {
-// //    console.log(client)
-// //   const user = client.data.user;
-// //     if (!user) return;
-// //     await this.chatService.setOfflineUser(user.id);
-// //     console.log(` User disconnected: ${user.name} (${user.role})`);
-// //     this.server.emit('userDisconnected', { userId: user.id, name: user.name });
-// // }
-  
-// //   @SubscribeMessage('privateMessage')
-// //   async handlePrivateMessage(
-// //     @ConnectedSocket() client: Socket,
-// //     @MessageBody() data: { to: string; message: string },
-// //   ) {
-// //     const sender = client.data.user;
-// //     if (!sender) throw new WsException('Unauthorized sender');
-
-// //     // Get receiver socket from Redis
-// //     const receiverSocketId = await this.chatService.getReceiverSocketId(data.to);
-// //     console.log(receiverSocketId)
-// //     if (!receiverSocketId) {
-// //       throw new WsException(`User ${data.to} is not online`);
-// //     }
-
-// //     // Save message in DB
-// //     await this.chatService.saveMessage(sender.id, data.to!, data.message);
-
-// //     // Send the message to the receiver’s socket
-// //     client.to(receiverSocketId).emit('privateMessage', {
-// //       from: sender.name,
-// //       message: data.message,
-// //     });
-
-// //     console.log(` ${sender.name} → ${data.to}: ${data.message}`);
-// //   }
-
-
-
-
-// }
 import {
   WebSocketGateway,
   SubscribeMessage,
@@ -116,10 +10,10 @@ import {
 } from '@nestjs/websockets';
 import { JwtService } from '@nestjs/jwt';
 import { Socket, Server } from 'socket.io';
-import { UsePipes, ValidationPipe, UseFilters, Type } from '@nestjs/common';
+import { UsePipes, ValidationPipe, UseFilters } from '@nestjs/common';
 import { WsExceptionsFilter } from 'src/common/filters/ws-exception.filter';
 import { ChatService } from './chat.service';
-import { Types } from 'mongoose';
+import { toObjectId } from 'src/common/Validations/objectId.helper';
 
 @WebSocketGateway({ cors: true })
 @UseFilters(WsExceptionsFilter)
@@ -135,7 +29,6 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
   @WebSocketServer()
   server: Server;
 
-  // Keep a simple in-memory map for connected users
   private onlineUsers = new Map<string, { socketId: string; name: string }>();
 
   constructor(
@@ -152,7 +45,9 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
       const decoded = this.jwtService.verify(token);
       client.data.user = decoded;
 
-      await this.chatService.setOnlineUser(decoded.id, client.id, decoded.name);
+      // Convert string to ObjectId safely
+      const userId = toObjectId(decoded.id);
+      await this.chatService.setOnlineUser(userId, client.id, decoded.name);
 
       console.log(`✅ User connected: ${decoded.name}`);
       this.server.emit('userConnected', { userId: decoded.id, name: decoded.name });
@@ -162,15 +57,18 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
     }
   }
 
+  // Handle user disconnect
   async handleDisconnect(client: Socket) {
     const user = client.data.user;
     if (user) {
-      await this.chatService.setOfflineUser(user.id);
+      const userId = toObjectId(user.id);
+      await this.chatService.setOfflineUser(userId);
       console.log(`❌ User disconnected: ${user.name}`);
       this.server.emit('userDisconnected', { userId: user.id, name: user.name });
     }
   }
 
+  // Send private message
   @SubscribeMessage('privateMessage')
   async handlePrivateMessage(
     @ConnectedSocket() client: Socket,
@@ -179,10 +77,13 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
     const sender = client.data.user;
     if (!sender) throw new WsException('Unauthorized sender');
 
-    const receiverSocketId = await this.chatService.getReceiverSocketId(data.to);
+    const senderId = toObjectId(sender.id);
+    const receiverId = toObjectId(data.to);
+
+    const receiverSocketId = await this.chatService.getReceiverSocketId(receiverId);
     if (!receiverSocketId) throw new WsException(`User ${data.to} is not online`);
 
-    await this.chatService.saveMessage(sender.id, data.to, data.message , sender.role);
+    await this.chatService.saveMessage(senderId, receiverId, data.message, sender.role);
 
     client.to(receiverSocketId).emit('privateMessage', {
       from: sender.name,
@@ -191,8 +92,8 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
 
     console.log(`💬 ${sender.name} → ${data.to}: ${data.message}`);
   }
-  
 
+  // Edit message
   @SubscribeMessage('editMessage')
   async handleEditMessage(
     @ConnectedSocket() client: Socket,
@@ -201,23 +102,16 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
     const sender = client.data.user;
     if (!sender) throw new WsException('Unauthorized sender');
 
-    // Update message using service
-    const updated = await this.chatService.editMessage(
-      data.messageId,
-      sender.id,
-      data.newMessage,
-    );
+    const messageId = toObjectId(data.messageId);
+    const senderId = toObjectId(sender.id);
 
+    const updated = await this.chatService.editMessage(messageId, senderId, data.newMessage);
     if (!updated) {
       throw new WsException('Message not found or not authorized to edit');
     }
 
-    // Get receiver’s socket
-    const receiverSocketId = await this.chatService.getReceiverSocketId(
-      updated.receiverId.toString(),
-    );
+    const receiverSocketId = await this.chatService.getReceiverSocketId(updated.receiverId);
 
-    // Emit update to both sides
     client.emit('messageUpdated', updated);
     if (receiverSocketId) {
       this.server.to(receiverSocketId).emit('messageUpdated', updated);
@@ -226,7 +120,7 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
     console.log(`✏️ Message edited by ${sender.name}`);
   }
 
-
+  // Delete message
   @SubscribeMessage('deleteMessage')
   async handleDeleteMessage(
     @ConnectedSocket() client: Socket,
@@ -235,27 +129,21 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
     const sender = client.data.user;
     if (!sender) throw new WsException('Unauthorized sender');
 
-    // Delete message using service
-    const deleted = await this.chatService.deleteMessage(data.messageId, sender.id);
+    const messageId = toObjectId(data.messageId);
+    const senderId = toObjectId(sender.id);
 
+    const deleted = await this.chatService.deleteMessage(messageId, senderId);
     if (!deleted) {
       throw new WsException('Message not found or not authorized to delete');
     }
 
-    const receiverSocketId = await this.chatService.getReceiverSocketId(
-      deleted.receiverId.toString(),
-    );
+    const receiverSocketId = await this.chatService.getReceiverSocketId(deleted.receiverId);
 
-    // Notify both sender and receiver
     client.emit('messageDeleted', { messageId: deleted._id });
     if (receiverSocketId) {
       this.server.to(receiverSocketId).emit('messageDeleted', { messageId: deleted._id });
     }
 
-    console.log(` Message deleted by ${sender.name}`);
+    console.log(`🗑️ Message deleted by ${sender.name}`);
   }
-
-
 }
-
-

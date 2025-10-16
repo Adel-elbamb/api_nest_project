@@ -26,6 +26,6 @@ export class Message {
 }
 
 export const MessageSchema = SchemaFactory.createForClass(Message);
-MessageSchema.index({ conversationId: 1 });
-MessageSchema.index({ senderId: 1 });
-MessageSchema.index({ receiverId: 1 });
+// MessageSchema.index({ conversationId: 1 });
+// MessageSchema.index({ senderId: 1 });
+// MessageSchema.index({ receiverId: 1 });

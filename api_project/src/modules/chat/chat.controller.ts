@@ -1,23 +1,22 @@
 import { Controller, Get, Param } from '@nestjs/common';
 import { ChatService } from './chat.service';
+import { Types } from 'mongoose';
 
 @Controller('chat')
 export class ChatController {
-    constructor(private chatService: ChatService) { }
-    // @Get(':user1/:user2')
-    // async getMessages(@Param('user1') user1: string, @Param('user2') user2: string) {
-    //     return this.chatService.getMessagesBetween(user1, user2);
-    // }
-    // @Get('online-users')
-    // async getOnlineUsers() {
-    //     return  await this.chatService.getOnlineUsers();
-    // }
-    // @Get(':user1/:user2')
-    // async getconvertion(@Param('user1') user1: string, @Param('user2') user2: string) {
-    //     return this.chatService.getConversation(user1,user2);
-    // }
-    @Get(':conversationId')
-    async getMessages(@Param('conversationId') conversationId: string) {
-        return this.chatService.getConversationById(conversationId);
+    constructor(private readonly chatService: ChatService) { }
+
+    @Get(':id')
+    async getConversation(@Param('id') conversationId: string) {
+        // Convert string to ObjectId
+        const objectId = new Types.ObjectId(conversationId);
+        return this.chatService.getConversationById(objectId);
     }
+
+    @Get('/onusers')
+    async getallUsers() {
+        return this.chatService.getOnlineUsers()
+    }
+
+
 }
