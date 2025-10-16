@@ -43,7 +43,7 @@ export class AuthService {
     }
     
 
-    async login(login: LoginDTO): Promise<{ token: string; user: { id: string; email: string , role :string } }> {
+    async login(login: LoginDTO): Promise<{ token: string; user: { id: string, email: string , role :string } }> {
         try {
             const user = await this.UserModel.findOne({ email: login.email }).exec();
             if (!user) {
@@ -55,7 +55,7 @@ export class AuthService {
                 throw new UnauthorizedException('Invalid email or password');
             }
 
-            const payload = { id: user._id, email: user.email , role: user.role};
+            const payload = { id: user._id, email: user.email ,name:user.name , role: user.role};
             const token = this._JwtService.sign(payload);
 
             return {

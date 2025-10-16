@@ -1,9 +1,20 @@
-// src/chat/dto/message.dto.ts
-import { IsString, MinLength, IsOptional } from 'class-validator';
+// src/messages/dto/create-message.dto.ts
+import { IsMongoId, IsNotEmpty, IsString } from 'class-validator';
+import { Transform } from 'class-transformer';
+import { Types } from 'mongoose';
 
 export class MessageDto {
- 
-    @IsString({ message: 'Message must be a string' })
-    @MinLength(3, { message: 'Message must be at least 3 characters long' })
+    @IsMongoId()
+    @Transform(({ value }) => new Types.ObjectId(value))
+    senderId: Types.ObjectId;
+
+    @IsMongoId()
+    @Transform(({ value }) => new Types.ObjectId(value))
+    receiverId: Types.ObjectId;
+
+    @IsString()
+    @IsNotEmpty()
     message: string;
 }
+
+
