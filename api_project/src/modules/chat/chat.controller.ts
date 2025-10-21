@@ -13,7 +13,7 @@ export class ChatController {
         return this.chatService.getConversationById(objectId);
     }
 
-    @Get('/onusers')
+    @Get('/')
     async getallUsers() {
         return this.chatService.getOnlineUsers()
     }

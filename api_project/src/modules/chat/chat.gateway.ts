@@ -16,6 +16,7 @@ import { ChatService } from './chat.service';
 import { toObjectId } from 'src/common/Validations/objectId.helper';
 import { Client } from 'node_modules/socket.io/dist/client';
 import { SendMessageDto } from './Dtos/messageDto.dto';
+import { Types } from 'mongoose';
 
 @WebSocketGateway({ cors: true })
 @UseFilters(WsExceptionsFilter)
@@ -65,14 +66,10 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
     if (user) {
       const userId = toObjectId(user.id);
       await this.chatService.setOfflineUser(userId);
-      console.log(`❌ User disconnected: ${user.name}`);
+      console.log(` User disconnected: ${user.name}`);
       this.server.emit('userDisconnected', { userId: user.id, name: user.name });
     }
   }
-
-
-
-
 
   @SubscribeMessage('Send_Message')
   async handleSend_Message(
@@ -82,17 +79,33 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
     const sender = client.data.user;
     if (!sender) throw new WsException('Unauthorized sender');
       // console.log(client.data.user)
-    const senderId = sender.id;
+    const senderId = toObjectId(sender.id);
     const senderType = sender.role;
-    console.log(senderId)
     const { message, conversationId, userId } = data;
 
-    // Save message & get conversation
+    let conv: Types.ObjectId | undefined = undefined;
+    let usr: Types.ObjectId | undefined = undefined;
+    if (conversationId) {
+      conv =
+        typeof conversationId === 'string'
+          ? toObjectId(conversationId)
+          : conversationId;
+    }
+    if (userId) {
+      usr =
+        typeof userId === 'string'
+        ? toObjectId(userId)
+        : conversationId
+    }
+
+
+
+    // ✅ استخدم conv هنا بدل conversationId
     const conversation = await this.chatService.CreateMessage({
       senderId,
       senderType,
       message,
-      conversationId,
+      conversationId: conv, // ✅ استخدم الـ ObjectId المحول
       userId,
     });
 
@@ -116,61 +129,3 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
   
 }
 
-
-
-
-
-
-//   // Edit message
-//   @SubscribeMessage('editMessage')
-//   async handleEditMessage(
-//     @ConnectedSocket() client: Socket,
-//     @MessageBody() data: { messageId: string; newMessage: string },
-//   ) {
-//     const sender = client.data.user;
-//     if (!sender) throw new WsException('Unauthorized sender');
-
-//     const messageId = toObjectId(data.messageId);
-//     const senderId = toObjectId(sender.id);
-
-//     const updated = await this.chatService.editMessage(messageId, senderId, data.newMessage);
-//     if (!updated) {
-//       throw new WsException('Message not found or not authorized to edit');
-//     }
-
-//     const receiverSocketId = await this.chatService.getReceiverSocketId(updated.receiverId);
-
-//     client.emit('messageUpdated', updated);
-//     if (receiverSocketId) {
-//       this.server.to(receiverSocketId).emit('messageUpdated', updated);
-//     }
-
-//     console.log(`✏️ Message edited by ${sender.name}`);
-//   }
-
-//   // Delete message
-//   @SubscribeMessage('deleteMessage')
-//   async handleDeleteMessage(
-//     @ConnectedSocket() client: Socket,
-//     @MessageBody() data: { messageId: string },
-//   ) {
-//     const sender = client.data.user;
-//     if (!sender) throw new WsException('Unauthorized sender');
-
-//     const messageId = toObjectId(data.messageId);
-//     const senderId = toObjectId(sender.id);
-
-//     const deleted = await this.chatService.deleteMessage(messageId, senderId);
-//     if (!deleted) {
-//       throw new WsException('Message not found or not authorized to delete');
-//     }
-
-//     const receiverSocketId = await this.chatService.getReceiverSocketId(deleted.receiverId);
-
-//     client.emit('messageDeleted', { messageId: deleted._id });
-//     if (receiverSocketId) {
-//       this.server.to(receiverSocketId).emit('messageDeleted', { messageId: deleted._id });
-//     }
-
-//     console.log(`🗑️ Message deleted by ${sender.name}`);
-//   }
