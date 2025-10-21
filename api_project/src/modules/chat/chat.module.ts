@@ -5,13 +5,14 @@ import { Message, MessageSchema } from 'src/Schemas/message.schema';
 import { ChatService } from './chat.service';
 import { ChatController } from './chat.controller';
 import { Conversation, ConversationSchema } from 'src/Schemas/Converstion.schema';
-import { ConnectedUser  , ConnectedUserSchema } from 'src/Schemas/ConnectedUser.schema';
-
+import { OnlineUsers, OnlineUsersSchema } from 'src/Schemas/OnlineUsers.schema';
+import { ConversationMemberSchema, ConversationMember } from 'src/Schemas/ConversationMembers.schema'
 
 @Module({
     imports: [MongooseModule.forFeature([{ name: Message.name, schema: MessageSchema }]),
-        MongooseModule.forFeature([{ name: Conversation.name, schema: ConversationSchema }]),
-        MongooseModule.forFeature([{ name: ConnectedUser.name, schema: ConnectedUserSchema }]),
+    MongooseModule.forFeature([{ name: Conversation.name, schema: ConversationSchema }]),
+        MongooseModule.forFeature([{ name: OnlineUsers.name, schema: OnlineUsersSchema }]),
+        MongooseModule.forFeature([{ name: ConversationMember.name, schema: ConversationMemberSchema  }])
     ],
     providers: [ChatGateway, ChatService],
     controllers: [ChatController],

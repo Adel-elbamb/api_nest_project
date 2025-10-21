@@ -1,20 +1,16 @@
-// src/messages/dto/create-message.dto.ts
-import { IsMongoId, IsNotEmpty, IsString } from 'class-validator';
-import { Transform } from 'class-transformer';
+// send-message.dto.ts
+import { IsOptional, IsString, IsMongoId } from 'class-validator';
 import { Types } from 'mongoose';
 
-export class MessageDto {
-    @IsMongoId()
-    @Transform(({ value }) => new Types.ObjectId(value))
-    senderId: Types.ObjectId;
-
-    @IsMongoId()
-    @Transform(({ value }) => new Types.ObjectId(value))
-    receiverId: Types.ObjectId;
-
+export class SendMessageDto {
     @IsString()
-    @IsNotEmpty()
-    message: string;
+    message: string; 
+
+    @IsMongoId()
+    @IsOptional()
+    conversationId?: Types.ObjectId; 
+
+    @IsMongoId()
+    @IsOptional()
+    userId?: Types.ObjectId;
 }
-
-

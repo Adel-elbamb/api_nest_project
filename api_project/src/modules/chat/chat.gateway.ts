@@ -14,6 +14,8 @@ import { UsePipes, ValidationPipe, UseFilters } from '@nestjs/common';
 import { WsExceptionsFilter } from 'src/common/filters/ws-exception.filter';
 import { ChatService } from './chat.service';
 import { toObjectId } from 'src/common/Validations/objectId.helper';
+import { Client } from 'node_modules/socket.io/dist/client';
+import { SendMessageDto } from './Dtos/messageDto.dto';
 
 @WebSocketGateway({ cors: true })
 @UseFilters(WsExceptionsFilter)
@@ -68,82 +70,107 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
     }
   }
 
-  // Send private message
-  @SubscribeMessage('privateMessage')
-  async handlePrivateMessage(
+
+
+
+
+  @SubscribeMessage('Send_Message')
+  async handleSend_Message(
     @ConnectedSocket() client: Socket,
-    @MessageBody() data: { to: string; message: string },
+    @MessageBody() data: SendMessageDto,
   ) {
     const sender = client.data.user;
     if (!sender) throw new WsException('Unauthorized sender');
+      // console.log(client.data.user)
+    const senderId = sender.id;
+    const senderType = sender.role;
+    console.log(senderId)
+    const { message, conversationId, userId } = data;
 
-    const senderId = toObjectId(sender.id);
-    const receiverId = toObjectId(data.to);
-
-    const receiverSocketId = await this.chatService.getReceiverSocketId(receiverId);
-    if (!receiverSocketId) throw new WsException(`User ${data.to} is not online`);
-
-    await this.chatService.saveMessage(senderId, receiverId, data.message, sender.role);
-
-    client.to(receiverSocketId).emit('privateMessage', {
-      from: sender.name,
-      message: data.message,
+    // Save message & get conversation
+    const conversation = await this.chatService.CreateMessage({
+      senderId,
+      senderType,
+      message,
+      conversationId,
+      userId,
     });
 
-    console.log(`💬 ${sender.name} → ${data.to}: ${data.message}`);
+    //  Safely get conversation ID string
+    const targetRoom = conversation?._id?.toString();
+    if (!targetRoom) throw new WsException('Conversation ID is missing');
+
+    // Emit message only to that conversation room
+    this.server.to(targetRoom).emit('newMessage', {
+      conversationId: targetRoom,
+      senderId,
+      senderType,
+      message,
+      timestamp: new Date(),
+    });
+
+    console.log(
+      ` Message sent by ${senderType}  ${sender.name} (${senderId}) in conversation ${targetRoom}`,
+    );
   }
-
-  // Edit message
-  @SubscribeMessage('editMessage')
-  async handleEditMessage(
-    @ConnectedSocket() client: Socket,
-    @MessageBody() data: { messageId: string; newMessage: string },
-  ) {
-    const sender = client.data.user;
-    if (!sender) throw new WsException('Unauthorized sender');
-
-    const messageId = toObjectId(data.messageId);
-    const senderId = toObjectId(sender.id);
-
-    const updated = await this.chatService.editMessage(messageId, senderId, data.newMessage);
-    if (!updated) {
-      throw new WsException('Message not found or not authorized to edit');
-    }
-
-    const receiverSocketId = await this.chatService.getReceiverSocketId(updated.receiverId);
-
-    client.emit('messageUpdated', updated);
-    if (receiverSocketId) {
-      this.server.to(receiverSocketId).emit('messageUpdated', updated);
-    }
-
-    console.log(`✏️ Message edited by ${sender.name}`);
-  }
-
-  // Delete message
-  @SubscribeMessage('deleteMessage')
-  async handleDeleteMessage(
-    @ConnectedSocket() client: Socket,
-    @MessageBody() data: { messageId: string },
-  ) {
-    const sender = client.data.user;
-    if (!sender) throw new WsException('Unauthorized sender');
-
-    const messageId = toObjectId(data.messageId);
-    const senderId = toObjectId(sender.id);
-
-    const deleted = await this.chatService.deleteMessage(messageId, senderId);
-    if (!deleted) {
-      throw new WsException('Message not found or not authorized to delete');
-    }
-
-    const receiverSocketId = await this.chatService.getReceiverSocketId(deleted.receiverId);
-
-    client.emit('messageDeleted', { messageId: deleted._id });
-    if (receiverSocketId) {
-      this.server.to(receiverSocketId).emit('messageDeleted', { messageId: deleted._id });
-    }
-
-    console.log(`🗑️ Message deleted by ${sender.name}`);
-  }
+  
 }
+
+
+
+
+
+
+//   // Edit message
+//   @SubscribeMessage('editMessage')
+//   async handleEditMessage(
+//     @ConnectedSocket() client: Socket,
+//     @MessageBody() data: { messageId: string; newMessage: string },
+//   ) {
+//     const sender = client.data.user;
+//     if (!sender) throw new WsException('Unauthorized sender');
+
+//     const messageId = toObjectId(data.messageId);
+//     const senderId = toObjectId(sender.id);
+
+//     const updated = await this.chatService.editMessage(messageId, senderId, data.newMessage);
+//     if (!updated) {
+//       throw new WsException('Message not found or not authorized to edit');
+//     }
+
+//     const receiverSocketId = await this.chatService.getReceiverSocketId(updated.receiverId);
+
+//     client.emit('messageUpdated', updated);
+//     if (receiverSocketId) {
+//       this.server.to(receiverSocketId).emit('messageUpdated', updated);
+//     }
+
+//     console.log(`✏️ Message edited by ${sender.name}`);
+//   }
+
+//   // Delete message
+//   @SubscribeMessage('deleteMessage')
+//   async handleDeleteMessage(
+//     @ConnectedSocket() client: Socket,
+//     @MessageBody() data: { messageId: string },
+//   ) {
+//     const sender = client.data.user;
+//     if (!sender) throw new WsException('Unauthorized sender');
+
+//     const messageId = toObjectId(data.messageId);
+//     const senderId = toObjectId(sender.id);
+
+//     const deleted = await this.chatService.deleteMessage(messageId, senderId);
+//     if (!deleted) {
+//       throw new WsException('Message not found or not authorized to delete');
+//     }
+
+//     const receiverSocketId = await this.chatService.getReceiverSocketId(deleted.receiverId);
+
+//     client.emit('messageDeleted', { messageId: deleted._id });
+//     if (receiverSocketId) {
+//       this.server.to(receiverSocketId).emit('messageDeleted', { messageId: deleted._id });
+//     }
+
+//     console.log(`🗑️ Message deleted by ${sender.name}`);
+//   }

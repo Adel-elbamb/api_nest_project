@@ -2,10 +2,10 @@
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
 import { Document, Types } from 'mongoose';
 
-export type ConnectedUserDocument = ConnectedUser & Document;
+export type OnlineUsersDocument = OnlineUsers & Document;
 
-@Schema({ timestamps: true, collection: 'ConnectedUsers' })
-export class ConnectedUser {
+@Schema({ timestamps: true, collection: 'OnlineUsers' })
+export class OnlineUsers {
     @Prop({ type: Types.ObjectId, ref: 'User', required: true })
     userId: Types.ObjectId;
 
@@ -22,4 +22,4 @@ export class ConnectedUser {
     lastSeen?: Date;
 }
 
-export const ConnectedUserSchema = SchemaFactory.createForClass(ConnectedUser);
+export const OnlineUsersSchema = SchemaFactory.createForClass(OnlineUsers);
