@@ -1,9 +1,16 @@
-// src/chat/dto/message.dto.ts
-import { IsString, MinLength, IsOptional } from 'class-validator';
+// send-message.dto.ts
+import { IsOptional, IsString, IsMongoId } from 'class-validator';
+import { Types } from 'mongoose';
 
-export class MessageDto {
- 
-    @IsString({ message: 'Message must be a string' })
-    @MinLength(3, { message: 'Message must be at least 3 characters long' })
-    message: string;
+export class SendMessageDto {
+    @IsString()
+    message: string; 
+
+    @IsMongoId()
+    @IsOptional()
+    conversationId?: Types.ObjectId; 
+
+    @IsMongoId()
+    @IsOptional()
+    userId?: Types.ObjectId;
 }

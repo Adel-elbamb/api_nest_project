@@ -1,12 +1,10 @@
 import { Prop, Schema, SchemaFactory } from "@nestjs/mongoose";
 import { Document } from "mongoose";
 import { UserRole } from "./user_role.interface";
+
 export type UserDocument = User & Document;
 
-
-
 @Schema({ timestamps: true })
-
 export class User {
     @Prop({ required: true })
     name: string;
@@ -20,7 +18,7 @@ export class User {
     @Prop({
         type: String,
         enum: UserRole,
-        default: UserRole.USER
+        default: UserRole.USER,
     })
     role: UserRole;
 }
